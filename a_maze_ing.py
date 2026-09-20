@@ -37,8 +37,11 @@ def neighbours(grid: list[list[int]], x: int,
 
 
 def generate(grid: list[list[int]], start: tuple[int, int] = (0, 0)) -> None:
-    # TODO: backtracker con pila
-    raise NotImplementedError
+    visited = [[False] * len(grid[0]) for _ in range(len(grid))]
+    x, y = start
+    visited[y][x] = True
+    stack = [(x, y)]
+    print(stack)
 
 
 def render_ascii(grid: list[list[int]]) -> str:
@@ -96,6 +99,7 @@ def main() -> None:
 
     grid = create_grid(width, height)
     print(render_ascii(grid))
+    generate(grid)
 
 
 if __name__ == "__main__":
