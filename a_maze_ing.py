@@ -1,4 +1,4 @@
-
+import random
 
 N, E, S, W = 1, 2, 4, 8
 ALL_WALLS = N | E | S | W
@@ -41,7 +41,18 @@ def generate(grid: list[list[int]], start: tuple[int, int] = (0, 0)) -> None:
     x, y = start
     visited[y][x] = True
     stack = [(x, y)]
-    print(stack)
+
+    while stack:
+        x, y = stack[-1]
+        candidates = [(d, nx, ny) for d, nx, ny in neighbours(grid, x, y)
+                      if not visited[ny][nx]]
+        if candidates:
+            direction, nx, ny = random.choice(candidates)
+            carve(grid, x, y, direction)
+            visited[ny][nx] = True
+            stack.append((nx, ny))
+        else:
+            stack.pop()
 
 
 def render_ascii(grid: list[list[int]]) -> str:
@@ -100,6 +111,7 @@ def main() -> None:
     grid = create_grid(width, height)
     print(render_ascii(grid))
     generate(grid)
+    print(render_ascii(grid))
 
 
 if __name__ == "__main__":
