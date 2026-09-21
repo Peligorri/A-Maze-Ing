@@ -11,7 +11,7 @@ BLOCK = "██"
 SPACE = "  "
 
 
-def create_grid(width: int, height: int) -> list[list[int]]:
+def create_grid(width: int, height: int) -> list[list[int]]:     
     return [[ALL_WALLS for _ in range(width)] for _ in range(height)]
 
 
@@ -71,7 +71,7 @@ def render_ascii(grid: list[list[int]]) -> str:
         mid = ""
         for x in range(width):
             mid += BLOCK if grid[y][x] & W else SPACE
-            mid += SPACE
+            mid += "++" if (x == ((width-1)//2) and y == ((height-1)//2)) else SPACE
         mid += BLOCK if grid[y][width - 1] & E else SPACE
         lines.append(mid)
 
@@ -109,7 +109,7 @@ def main() -> None:
     height = ask_size("Insert how many rows do you want for the grid: ")
 
     grid = create_grid(width, height)
-    print(render_ascii(grid))
+    #print(render_ascii(grid))
     generate(grid)
     print(render_ascii(grid))
 
