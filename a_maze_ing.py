@@ -6,13 +6,44 @@ ALL_WALLS = N | E | S | W
 DELTA = {N: (0, -1), E: (1, 0), S: (0, 1), W: (-1, 0)}
 OPPOSITE = {N: S, E: W, S: N, W: E}
 
-MIN_SIZE = 5
+MIN_SIZE = 10
 BLOCK = "██"
 SPACE = "  "
+PATTERN = "⣿⣿"
 
+
+def create_pattern(width: int, height: int) -> list[list[int]]:
+    pattern = [[0] * width for _ in range(height)]
+
+    pattern_start_x = ((width - 1) // 2) - 3
+    pattern_start_y = ((height - 1) // 2) - 2
+
+    figure = [
+        [1, 0, 0, 0, 1, 1, 1],
+        [1, 0, 0, 0, 0, 0, 1],
+        [1, 1, 1, 0, 1, 1, 1],
+        [0, 0, 1, 0, 1, 0, 0],
+        [0, 0, 1, 0, 1, 1, 1],
+    ]
+
+    for y in range(5):
+        for x in range(7):
+            pattern[pattern_start_y + y][pattern_start_x + x] = figure[y][x]
+
+    return pattern
 
 def create_grid(width: int, height: int) -> list[list[int]]:     
-    return [[ALL_WALLS for _ in range(width)] for _ in range(height)]
+    grid = []
+
+    for _ in range(height):
+        row = []
+
+        for _ in range(width):
+            row.append(ALL_WALLS)
+
+        grid.append(row)
+
+    return grid
 
 
 def carve(grid: list[list[int]], x: int, y: int, direction: int) -> None:
@@ -36,8 +67,12 @@ def neighbours(grid: list[list[int]], x: int,
     return result
 
 
-def generate(grid: list[list[int]], start: tuple[int, int] = (0, 0)) -> None:
+def generate(grid: list[list[int]], pattern: list[list[int]], start: tuple[int, int] = (0, 0)) -> None:
     visited = [[False] * len(grid[0]) for _ in range(len(grid))]
+    for y in range(len(pattern)):
+        for x in range(len(pattern[0])):
+            if pattern[y][x] == 1:
+                visited[y][x] = True
     x, y = start
     visited[y][x] = True
     stack = [(x, y)]
@@ -55,7 +90,7 @@ def generate(grid: list[list[int]], start: tuple[int, int] = (0, 0)) -> None:
             stack.pop()
 
 
-def render_ascii(grid: list[list[int]]) -> str:
+def render_ascii(grid: list[list[int]], pattern: list[list[int]]) -> str:
     height = len(grid)
     width = len(grid[0])
     lines = []
@@ -71,7 +106,7 @@ def render_ascii(grid: list[list[int]]) -> str:
         mid = ""
         for x in range(width):
             mid += BLOCK if grid[y][x] & W else SPACE
-            mid += "++" if (x == ((width-1)//2) and y == ((height-1)//2)) else SPACE
+            mid += PATTERN if pattern[y][x] == 1 else SPACE
         mid += BLOCK if grid[y][width - 1] & E else SPACE
         lines.append(mid)
 
@@ -109,9 +144,10 @@ def main() -> None:
     height = ask_size("Insert how many rows do you want for the grid: ")
 
     grid = create_grid(width, height)
+    pattern = create_pattern(width, height)
     #print(render_ascii(grid))
-    generate(grid)
-    print(render_ascii(grid))
+    generate(grid, pattern)
+    print(render_ascii(grid, pattern))
 
 
 if __name__ == "__main__":
