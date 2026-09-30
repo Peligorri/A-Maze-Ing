@@ -67,7 +67,7 @@ def neighbours(grid: list[list[int]], x: int,
     return result
 
 
-def generate(grid: list[list[int]], pattern: list[list[int]], start: tuple[int, int] = (0, 0)) -> None:
+def generate_perfect(grid: list[list[int]], pattern: list[list[int]], start: tuple[int, int] = (0, 0)) -> None:
     visited = [[False] * len(grid[0]) for _ in range(len(grid))]
     for y in range(len(pattern)):
         for x in range(len(pattern[0])):
@@ -88,6 +88,34 @@ def generate(grid: list[list[int]], pattern: list[list[int]], start: tuple[int, 
             stack.append((nx, ny))
         else:
             stack.pop()
+
+
+def generate_imperfect(grid: list[list[int]], pattern: list[list[int]]) -> None:
+
+    for y in range(len(grid)):
+        for x in range(len(grid[0])):
+
+            if pattern[y][x] == 0:
+                if random.random() < 0.15:
+                    if random.random() < 0.5:
+                        if y + 1 < len(grid) and pattern[y + 1][x] == 0 and grid[y][x] & S:
+                            carve(grid, x, y, S)
+                    else:
+                        if x + 1 < len(grid[0]) and pattern[y][x + 1] == 0 and grid[y][x] & E:
+                            carve(grid, x, y, E)
+
+    for y in range(len(pattern)):
+        for x in range(len(pattern[0])):
+            if pattern[y][x] == 1:
+                grid[y][x] = ALL_WALLS
+                if y > 0:
+                    grid[y - 1][x] |= S
+                if y + 1 < len(grid):
+                    grid[y + 1][x] |= N
+                if x > 0:
+                    grid[y][x - 1] |= E
+                if x + 1 < len(grid[0]):
+                    grid[y][x + 1] |= W
 
 
 def render_ascii(grid: list[list[int]], pattern: list[list[int]]) -> str:
@@ -145,10 +173,12 @@ def main() -> None:
 
     grid = create_grid(width, height)
     pattern = create_pattern(width, height)
-    #print(render_ascii(grid))
-    generate(grid, pattern)
+    generate_perfect(grid, pattern)
     print(render_ascii(grid, pattern))
-
+    print("")
+    print("")
+    generate_imperfect(grid, pattern)
+    print(render_ascii(grid, pattern))
 
 if __name__ == "__main__":
     main()
