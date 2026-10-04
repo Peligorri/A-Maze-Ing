@@ -1,185 +1,184 @@
+"""Main program: reads the config, builds the maze and prints it."""
 import random
+import sys
 
-N, E, S, W = 1, 2, 4, 8
-ALL_WALLS = N | E | S | W
+from mazegen import MazeGenerator, N, E, S, W, MOVES
 
-DELTA = {N: (0, -1), E: (1, 0), S: (0, 1), W: (-1, 0)}
-OPPOSITE = {N: S, E: W, S: N, W: E}
-
-MIN_SIZE = 10
-BLOCK = "██"
-SPACE = "  "
-PATTERN = "⣿⣿"
+WALL = "██"
+EMPTY = "  "
+PATTERN_42 = "⣿⣿"
+TRAIL = "••"
 
 
-def create_pattern(width: int, height: int) -> list[list[int]]:
-    pattern = [[0] * width for _ in range(height)]
-
-    pattern_start_x = ((width - 1) // 2) - 3
-    pattern_start_y = ((height - 1) // 2) - 2
-
-    figure = [
-        [1, 0, 0, 0, 1, 1, 1],
-        [1, 0, 0, 0, 0, 0, 1],
-        [1, 1, 1, 0, 1, 1, 1],
-        [0, 0, 1, 0, 1, 0, 0],
-        [0, 0, 1, 0, 1, 1, 1],
-    ]
-
-    for y in range(5):
-        for x in range(7):
-            pattern[pattern_start_y + y][pattern_start_x + x] = figure[y][x]
-
-    return pattern
-
-def create_grid(width: int, height: int) -> list[list[int]]:     
-    grid = []
-
-    for _ in range(height):
-        row = []
-
-        for _ in range(width):
-            row.append(ALL_WALLS)
-
-        grid.append(row)
-
-    return grid
+def read_config(path: str) -> dict[str, str]:
+    """Lee las lineas CLAVE=valor, saltando vacias y comentarios (#)."""
+    config: dict[str, str] = {}
+    try:
+        with open(path, encoding="utf-8") as file:
+            for number, line in enumerate(file, start=1):
+                line = line.strip()
+                if line == "" or line.startswith("#"):
+                    continue
+                if "=" not in line:
+                    raise ValueError(f"line {number}: missing '='")
+                key, value = line.split("=", 1)
+                config[key.strip().upper()] = value.strip()
+    except OSError as error:
+        raise ValueError(f"cannot read '{path}': {error}") from error
+    return config
 
 
-def carve(grid: list[list[int]], x: int, y: int, direction: int) -> None:
-    dx, dy = DELTA[direction]
-    nx, ny = x + dx, y + dy
-    grid[y][x] &= ~direction
-    grid[ny][nx] &= ~OPPOSITE[direction]
+def read_point(text: str, name: str) -> tuple[int, int]:
+    """Convierte 'x,y' en dos numeros."""
+    parts = text.split(",")
+    if len(parts) != 2:
+        raise ValueError(f"{name} must be x,y")
+    try:
+        return int(parts[0]), int(parts[1])
+    except ValueError:
+        raise ValueError(f"{name} must be x,y with numbers") from None
 
 
-def in_bounds(grid: list[list[int]], x: int, y: int) -> bool:
-    return 0 <= y < len(grid) and 0 <= x < len(grid[0])
+def build_maze(config: dict[str, str]) -> tuple[MazeGenerator, bool, str]:
+    """Check the config and return (maze, is_perfect, output file)."""
+    required = ["WIDTH", "HEIGHT", "ENTRY", "EXIT", "OUTPUT_FILE", "PERFECT"]
+    for key in required:
+        if key not in config:
+            raise ValueError(f"missing key {key}")
+
+    try:
+        width = int(config["WIDTH"])
+        height = int(config["HEIGHT"])
+        seed = int(config["SEED"]) if "SEED" in config else None
+    except ValueError:
+        raise ValueError("WIDTH, HEIGHT and SEED must be numbers") from None
+    if width < 2 or height < 2:
+        raise ValueError("WIDTH and HEIGHT must be at least 2")
+
+    perfect = config["PERFECT"].lower()
+    if perfect != "true" and perfect != "false":
+        raise ValueError("PERFECT must be True or False")
+
+    entry = read_point(config["ENTRY"], "ENTRY")
+    exit_ = read_point(config["EXIT"], "EXIT")
+    maze = MazeGenerator(width, height, seed, entry, exit_)
+    return maze, perfect == "true", config["OUTPUT_FILE"]
 
 
-def neighbours(grid: list[list[int]], x: int,
-               y: int) -> list[tuple[int, int, int]]:
-    result = []
-    for direction, (dx, dy) in DELTA.items():
-        nx, ny = x + dx, y + dy
-        if in_bounds(grid, nx, ny):
-            result.append((direction, nx, ny))
-    return result
-
-
-def generate_perfect(grid: list[list[int]], pattern: list[list[int]], start: tuple[int, int] = (0, 0)) -> None:
-    visited = [[False] * len(grid[0]) for _ in range(len(grid))]
-    for y in range(len(pattern)):
-        for x in range(len(pattern[0])):
-            if pattern[y][x] == 1:
-                visited[y][x] = True
-    x, y = start
-    visited[y][x] = True
-    stack = [(x, y)]
-
-    while stack:
-        x, y = stack[-1]
-        candidates = [(d, nx, ny) for d, nx, ny in neighbours(grid, x, y)
-                      if not visited[ny][nx]]
-        if candidates:
-            direction, nx, ny = random.choice(candidates)
-            carve(grid, x, y, direction)
-            visited[ny][nx] = True
-            stack.append((nx, ny))
-        else:
-            stack.pop()
-
-
-def generate_imperfect(grid: list[list[int]], pattern: list[list[int]]) -> None:
-
-    for y in range(len(grid)):
-        for x in range(len(grid[0])):
-
-            if pattern[y][x] == 0:
-                if random.random() < 0.15:
-                    if random.random() < 0.5:
-                        if y + 1 < len(grid) and pattern[y + 1][x] == 0 and grid[y][x] & S:
-                            carve(grid, x, y, S)
-                    else:
-                        if x + 1 < len(grid[0]) and pattern[y][x + 1] == 0 and grid[y][x] & E:
-                            carve(grid, x, y, E)
-
-    for y in range(len(pattern)):
-        for x in range(len(pattern[0])):
-            if pattern[y][x] == 1:
-                grid[y][x] = ALL_WALLS
-                if y > 0:
-                    grid[y - 1][x] |= S
-                if y + 1 < len(grid):
-                    grid[y + 1][x] |= N
-                if x > 0:
-                    grid[y][x - 1] |= E
-                if x + 1 < len(grid[0]):
-                    grid[y][x + 1] |= W
-
-
-def render_ascii(grid: list[list[int]], pattern: list[list[int]]) -> str:
-    height = len(grid)
-    width = len(grid[0])
-    lines = []
-
-    for y in range(height):
-        top = ""
-        for x in range(width):
-            top += BLOCK
-            top += BLOCK if grid[y][x] & N else SPACE
-        top += BLOCK
-        lines.append(top)
-
-        mid = ""
-        for x in range(width):
-            mid += BLOCK if grid[y][x] & W else SPACE
-            mid += PATTERN if pattern[y][x] == 1 else SPACE
-        mid += BLOCK if grid[y][width - 1] & E else SPACE
-        lines.append(mid)
-
-    floor = ""
-    for x in range(width):
-        floor += BLOCK
-        floor += BLOCK if grid[height - 1][x] & S else SPACE
-    floor += BLOCK
-    lines.append(floor)
-
-    return "\n".join(lines)
+def open_walls(maze: MazeGenerator) -> None:
+    """PROVISIONAL (modo no perfecto): quita paredes al azar para hacer
+    bucles. Todavia no cumple todo lo que pide el subject."""
+    grid = maze.grid
+    for y in range(maze.height):
+        for x in range(maze.width):
+            if maze.pattern[y][x] == 1:
+                continue
+            if maze.rng.random() > 0.15:
+                continue
+            if maze.rng.random() < 0.5:
+                direction, opposite = S, N
+            else:
+                direction, opposite = E, W
+            nx = x + MOVES[direction][0]
+            ny = y + MOVES[direction][1]
+            if nx < maze.width and ny < maze.height:
+                if maze.pattern[ny][nx] == 0:
+                    grid[y][x] &= ~direction
+                    grid[ny][nx] &= ~opposite
 
 
 def to_hex(grid: list[list[int]]) -> str:
-    return "\n".join("".join(f"{cell:x}" for cell in row) for row in grid)
+    """Una cifra hexadecimal por celda, una fila por linea."""
+    rows = []
+    for row in grid:
+        rows.append("".join(f"{cell:X}" for cell in row))
+    return "\n".join(rows)
 
 
-def ask_size(prompt: str) -> int:
-    while True:
-        raw = input(prompt)
-        try:
-            value = int(raw)
-        except ValueError:
-            print(f"'{raw}' is not an integer.")
-            continue
-        if value < MIN_SIZE:
-            print(f"The value must be {MIN_SIZE} or greater.")
-            continue
-        return value
+def save(maze: MazeGenerator, path: str) -> None:
+    """Escribe el archivo de salida que pide el subject."""
+    text = to_hex(maze.grid) + "\n\n"
+    text += f"{maze.entry[0]},{maze.entry[1]}\n"
+    text += f"{maze.exit[0]},{maze.exit[1]}\n"
+    text += maze.solve() + "\n"
+    try:
+        with open(path, "w", encoding="utf-8") as file:
+            file.write(text)
+    except OSError as error:
+        raise ValueError(f"cannot write '{path}': {error}") from error
+
+
+def path_cells(maze: MazeGenerator) -> set[tuple[int, int]]:
+    """Todas las celdas por las que pasa la solucion."""
+    directions = {"N": N, "E": E, "S": S, "W": W}
+    x, y = maze.entry
+    cells = {(x, y)}
+    for letter in maze.solve():
+        dx, dy = MOVES[directions[letter]]
+        x, y = x + dx, y + dy
+        cells.add((x, y))
+    return cells
+
+
+def draw(maze: MazeGenerator, show_path: bool) -> str:
+    """Dibuja el laberinto con texto."""
+    grid = maze.grid
+    trail = path_cells(maze) if show_path else set()
+    lines = []
+
+    for y in range(maze.height):
+        # Linea de arriba: paredes norte
+        top = ""
+        for x in range(maze.width):
+            top += WALL
+            top += WALL if grid[y][x] & N else EMPTY
+        lines.append(top + WALL)
+
+        # Linea del medio: pared oeste + contenido de la celda
+        middle = ""
+        for x in range(maze.width):
+            middle += WALL if grid[y][x] & W else EMPTY
+            if (x, y) == maze.entry:
+                middle += "EN"
+            elif (x, y) == maze.exit:
+                middle += "EX"
+            elif maze.pattern[y][x] == 1:
+                middle += PATTERN_42
+            elif (x, y) in trail:
+                middle += TRAIL
+            else:
+                middle += EMPTY
+        last = grid[y][maze.width - 1]
+        lines.append(middle + (WALL if last & E else EMPTY))
+
+    # Ultima linea: paredes sur de la fila de abajo
+    bottom = ""
+    for cell in grid[-1]:
+        bottom += WALL
+        bottom += WALL if cell & S else EMPTY
+    lines.append(bottom + WALL)
+    return "\n".join(lines)
 
 
 def main() -> None:
-    print("=== A-Maze-Ing WIP ===")
-    width = ask_size("Insert how many columns do you want for the grid: ")
-    height = ask_size("Insert how many rows do you want for the grid: ")
+    """Usage: python3 a_maze_ing.py config.txt"""
+    if len(sys.argv) != 2:
+        print("Usage: python3 a_maze_ing.py config.txt")
+        return
+    try:
+        config = read_config(sys.argv[1])
+        maze, perfect, output_file = build_maze(config)
+        if maze.seed is None:
+            maze.rng = random.Random()
+        maze.generate()
+        if not perfect:
+            open_walls(maze)
+        save(maze, output_file)
+    except ValueError as error:
+        print(f"Error: {error}")
+        return
+    print(draw(maze, show_path=True))
 
-    grid = create_grid(width, height)
-    pattern = create_pattern(width, height)
-    generate_perfect(grid, pattern)
-    print(render_ascii(grid, pattern))
-    print("")
-    print("")
-    generate_imperfect(grid, pattern)
-    print(render_ascii(grid, pattern))
 
 if __name__ == "__main__":
     main()
-    
