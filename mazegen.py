@@ -2,6 +2,9 @@
 import random
 from collections import deque
 
+__version__ = "1.0.0"
+__all__ = ["MazeGenerator", "N", "E", "S", "W", "ALL_WALLS", "MOVES"]
+
 # Cada pared es un bit: Norte=1, Este=2, Sur=4, Oeste=8
 N, E, S, W = 1, 2, 4, 8
 ALL_WALLS = N | E | S | W
