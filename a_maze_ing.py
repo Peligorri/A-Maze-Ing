@@ -1,14 +1,13 @@
 """Main program: reads the config, builds the maze and prints it."""
-import random
 import sys
-
 from mazegen import MazeGenerator, N, E, S, W, MOVES
 
 WALL = "██"
 EMPTY = "  "
 PATTERN_42 = "⣿⣿"
 TRAIL = "••"
-
+WALL_COLORS = ("\033[96m", "\033[92m", "\033[93m", "\033[95m")
+RESET = "\033[0m"
 
 def read_config(path: str) -> dict[str, str]:
     """Lee las lineas CLAVE=valor, saltando vacias y comentarios (#)."""
@@ -99,19 +98,21 @@ def path_cells(maze: MazeGenerator) -> set[tuple[int, int]]:
     return cells
 
 
-def draw(maze: MazeGenerator, show_path: bool) -> str:
-    """Dibuja el laberinto con texto."""
+def draw(maze: MazeGenerator, show_path: bool,
+         wall_color: str = "") -> str:
+    """Dibuja el laberinto, opcionalmente coloreando las paredes."""
     grid = maze.grid
     trail = path_cells(maze) if show_path else set()
+    wall = f"{wall_color}{WALL}{RESET}" if wall_color else WALL
     lines = []
 
     for y in range(maze.height):
         # Linea de arriba: paredes norte
         top = ""
         for x in range(maze.width):
-            top += WALL
-            top += WALL if grid[y][x] & N else EMPTY
-        lines.append(top + WALL)
+            top += wall
+            top += wall if grid[y][x] & N else EMPTY
+        lines.append(top + wall)
 
         # Linea del medio: pared oeste + contenido de la celda
         middle = ""
@@ -128,15 +129,25 @@ def draw(maze: MazeGenerator, show_path: bool) -> str:
             else:
                 middle += EMPTY
         last = grid[y][maze.width - 1]
-        lines.append(middle + (WALL if last & E else EMPTY))
+        lines.append(middle + (wall if last & E else EMPTY))
 
     # Ultima linea: paredes sur de la fila de abajo
     bottom = ""
     for cell in grid[-1]:
-        bottom += WALL
-        bottom += WALL if cell & S else EMPTY
-    lines.append(bottom + WALL)
+        bottom += wall
+        bottom += wall if cell & S else EMPTY
+    lines.append(bottom + wall)
     return "\n".join(lines)
+
+
+def make_maze(config: dict[str, str], regenerate: bool) -> MazeGenerator:
+    """Genera el laberinto y lo guarda. Si regenerate, ignora SEED."""
+    if regenerate:
+        config = {k: v for k, v in config.items() if k != "SEED"}
+    maze, _, output_file = build_maze(config)
+    maze.generate()
+    save(maze, output_file)
+    return maze
 
 
 def main() -> None:
@@ -146,16 +157,36 @@ def main() -> None:
         return
     try:
         config = read_config(sys.argv[1])
-        maze, _, output_file = build_maze(config)
-
-        if maze.seed is None:
-            maze.rng = random.Random()
-        maze.generate()
-        save(maze, output_file)
+        maze = make_maze(config, False)
     except ValueError as error:
         print(f"Error: {error}")
         return
-    print(draw(maze, show_path=True))
+
+    show_path = True
+    color = 0
+    while True:
+        print(draw(maze, show_path, WALL_COLORS[color]))
+        print("1. Re-generate  2. Show/Hide path  "
+              "3. Change colors  4. Quit")
+        try:
+            choice = input("Choice (1-4): ").strip()
+        except EOFError:
+            return
+        if choice == "1":
+            try:
+                maze = make_maze(config, True)
+            except ValueError as error:
+                print(f"Error: {error}")
+                return
+        elif choice == "2":
+            show_path = not show_path
+        elif choice == "3":
+            color = (color + 1) % len(WALL_COLORS)
+        elif choice == "4":
+            return
+        else:
+            print("Invalid choice, use 1, 2, 3 or 4.")
+
 
 
 if __name__ == "__main__":
