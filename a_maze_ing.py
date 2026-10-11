@@ -61,31 +61,10 @@ def build_maze(config: dict[str, str]) -> tuple[MazeGenerator, bool, str]:
 
     entry = read_point(config["ENTRY"], "ENTRY")
     exit_ = read_point(config["EXIT"], "EXIT")
-    maze = MazeGenerator(width, height, seed, entry, exit_)
+    maze = MazeGenerator(
+        width, height, seed, entry, exit_, perfect == "true"
+    )
     return maze, perfect == "true", config["OUTPUT_FILE"]
-
-
-def open_walls(maze: MazeGenerator) -> None:
-    """PROVISIONAL (modo no perfecto): quita paredes al azar para hacer
-    bucles. Todavia no cumple todo lo que pide el subject."""
-    grid = maze.grid
-    for y in range(maze.height):
-        for x in range(maze.width):
-            if maze.pattern[y][x] == 1:
-                continue
-            if maze.rng.random() > 0.15:
-                continue
-            if maze.rng.random() < 0.5:
-                direction, opposite = S, N
-            else:
-                direction, opposite = E, W
-            nx = x + MOVES[direction][0]
-            ny = y + MOVES[direction][1]
-            if nx < maze.width and ny < maze.height:
-                if maze.pattern[ny][nx] == 0:
-                    grid[y][x] &= ~direction
-                    grid[ny][nx] &= ~opposite
-
 
 def to_hex(grid: list[list[int]]) -> str:
     """Una cifra hexadecimal por celda, una fila por linea."""
@@ -167,12 +146,11 @@ def main() -> None:
         return
     try:
         config = read_config(sys.argv[1])
-        maze, perfect, output_file = build_maze(config)
+        maze, _, output_file = build_maze(config)
+
         if maze.seed is None:
             maze.rng = random.Random()
         maze.generate()
-        if not perfect:
-            open_walls(maze)
         save(maze, output_file)
     except ValueError as error:
         print(f"Error: {error}")

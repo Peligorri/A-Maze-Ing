@@ -147,20 +147,90 @@ class MazeGenerator:
 
     def _is_open_block(self, x0: int, y0: int) -> bool:
         """True si el bloque 3x3 con esquina (x0, y0) no tiene paredes."""
+        if not (self._inside(x0, y0) and self._inside(x0 + 2, y0 + 2)):
+            return False
+        for y in range(y0, y0 + 3):
+            for x in range(x0, x0 + 3):
+                if x < x0 + 2 and self.grid[y][x] & E:
+                    return False
+                if y < y0 + 2 and self.grid[y][x] & S:
+                    return False
+        return True
 
     def _makes_big_area(self, x: int, y: int) -> bool:
         """True si alrededor de la celda hay una zona abierta de 3x3."""
+        for y0 in range(y - 2, y + 1):
+            for x0 in range(x - 2, x + 1):
+                if self._is_open_block(x0, y0):
+                    return True
+        return False
 
     def _has_two_routes(self) -> bool:
         """True si hay un segundo camino que no repite pasillos del corto."""
+        path = self.solve()
+        if path == "":
+            return False
+        directions = {"N": N, "E": E, "S": S, "W": W}
+        used: set[frozenset[tuple[int, int]]] = set()
+        x, y = self.entry
+        for letter in path:
+            dx, dy = MOVES[directions[letter]]
+            used.add(frozenset(((x, y), (x + dx, y + dy))))
+            x, y = x + dx, y + dy
+
+        seen = {self.entry}
+        queue = deque([self.entry])
+        while queue:
+            x, y = queue.popleft()
+            if (x, y) == self.exit:
+                return True
+            for direction, (dx, dy) in MOVES.items():
+                nxt = (x + dx, y + dy)
+                if self.grid[y][x] & direction or nxt in seen:
+                    continue
+                if frozenset(((x, y), nxt)) in used:
+                    continue
+                seen.add(nxt)
+                queue.append(nxt)
+        return False
 
     def _add_second_route(self) -> None:
         """Abre paredes hasta que haya dos rutas independientes."""
+        if self._has_two_routes():
+            return
+        candidates = [(x, y, d) for y in range(self.height)
+                      for x in range(self.width) for d in (E, S)]
+        self.rng.shuffle(candidates)
+        for x, y, direction in candidates:
+            if self._try_open(x, y, direction) and self._has_two_routes():
+                return
 
     def _try_open(self, x: int, y: int, direction: int) -> bool:
         """Abre una pared si no forma un 3x3. Devuelve si lo consiguio."""
+        dx, dy = MOVES[direction]
+        nx, ny = x + dx, y + dy
+        if not self._inside(nx, ny):
+            return False
+        if self.pattern[y][x] == 1 or self.pattern[ny][nx] == 1:
+            return False
+        if not self.grid[y][x] & direction:
+            return False  # ya estaba abierta
+        self.grid[y][x] &= ~direction
+        self.grid[ny][nx] &= ~OPPOSITE[direction]
+        if self._makes_big_area(x, y) or self._makes_big_area(nx, ny):
+            self.grid[y][x] |= direction
+            self.grid[ny][nx] |= OPPOSITE[direction]
+            return False
+        return True
 
     def _remove_dead_ends(self) -> None:
         """Abre una pared en cada callejon sin salida (celda de 3 paredes)."""
-
-    
+        for y in range(self.height):
+            for x in range(self.width):
+                if self.pattern[y][x] == 1 or self._count_walls(x, y) != 3:
+                    continue
+                directions = list(MOVES)
+                self.rng.shuffle(directions)
+                for direction in directions:
+                    if self._try_open(x, y, direction):
+                        break
