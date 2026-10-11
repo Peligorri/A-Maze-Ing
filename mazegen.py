@@ -31,7 +31,7 @@ class MazeGenerator:
                  exit_: tuple[int, int] | None = None,
                  perfect: bool = True) -> None:
         """Store the parameters and check entry and exit are valid."""
-    
+
         self.width = width
         self.height = height
         self.perfect = perfect
@@ -237,3 +237,4 @@ class MazeGenerator:
                 for direction in directions:
                     if self._try_open(x, y, direction):
                         break
+                    

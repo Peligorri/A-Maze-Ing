@@ -9,6 +9,7 @@ TRAIL = "••"
 WALL_COLORS = ("\033[96m", "\033[92m", "\033[93m", "\033[95m")
 RESET = "\033[0m"
 
+
 def read_config(path: str) -> dict[str, str]:
     """Lee las lineas CLAVE=valor, saltando vacias y comentarios (#)."""
     config: dict[str, str] = {}
@@ -64,6 +65,7 @@ def build_maze(config: dict[str, str]) -> tuple[MazeGenerator, bool, str]:
         width, height, seed, entry, exit_, perfect == "true"
     )
     return maze, perfect == "true", config["OUTPUT_FILE"]
+
 
 def to_hex(grid: list[list[int]]) -> str:
     """Una cifra hexadecimal por celda, una fila por linea."""
@@ -186,7 +188,6 @@ def main() -> None:
             return
         else:
             print("Invalid choice, use 1, 2, 3 or 4.")
-
 
 
 if __name__ == "__main__":
