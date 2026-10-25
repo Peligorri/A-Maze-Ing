@@ -4,9 +4,11 @@ from mazegen import MazeGenerator, N, E, S, W, MOVES
 
 WALL = "██"
 EMPTY = "  "
-PATTERN_42 = "⣿⣿"
-TRAIL = "••"
+PATTERN_42 = "░░"
+TRAIL = "\033[38;5;213m██\033[0m"
 WALL_COLORS = ("\033[96m", "\033[92m", "\033[93m", "\033[95m")
+START_COLORS = "\033[2;32m"
+END_COLORS = "\033[91m"
 RESET = "\033[0m"
 
 
@@ -119,13 +121,13 @@ def draw(maze: MazeGenerator, show_path: bool,
         # Linea del medio: pared oeste + contenido de la celda
         middle = ""
         for x in range(maze.width):
-            middle += WALL if grid[y][x] & W else EMPTY
+            middle += wall if grid[y][x] & W else EMPTY
             if (x, y) == maze.entry:
-                middle += "EN"
+                middle += f"{START_COLORS}██{RESET}"
             elif (x, y) == maze.exit:
-                middle += "EX"
+                middle += f"{END_COLORS}██{RESET}"
             elif maze.pattern[y][x] == 1:
-                middle += PATTERN_42
+                middle += f"{wall_color}{PATTERN_42}{RESET}"
             elif (x, y) in trail:
                 middle += TRAIL
             else:
@@ -168,8 +170,12 @@ def main() -> None:
     color = 0
     while True:
         print(draw(maze, show_path, WALL_COLORS[color]))
-        print("1. Re-generate  2. Show/Hide path  "
-              "3. Change colors  4. Quit")
+        print("=== A-Maze-Ing ===")
+        print("\033[32m1. Re-generate\033[0m")
+        print("\033[32m2. Show/Hide path\033[0m")
+        print("\033[32m3. Change colors\033[0m")
+        print("\033[31m4. Quit\033[0m")
+        
         try:
             choice = input("Choice (1-4): ").strip()
         except EOFError:
